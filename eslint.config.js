@@ -13,6 +13,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // Runs inside the page under test, not in Node.
+    files: ['e2e/support/speech-stub.js'],
+    languageOptions: { globals: globals.browser },
+  },
+  {
     files: ['web/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },

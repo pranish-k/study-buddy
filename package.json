@@ -16,7 +16,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "e2e": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm test && npm run e2e"
+    "check": "npm run lint && npm run typecheck && npm test && npm run e2e",
+    "screens": "tsx e2e/support/shoot.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

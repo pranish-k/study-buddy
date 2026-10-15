@@ -122,16 +122,35 @@ study-buddy/
 |---|---|---|
 | N0 Bootstrap | done | install, lint, typecheck green |
 | N1 Server | done | 17/17 vitest (3x stable), curl streams SSE from mock brain |
-| N2 Web shell | in progress | - |
-| N3 Avatar | todo | - |
-| N4 Chat panel | todo | - |
-| N5 Voice loop | todo | - |
-| N6 Timer + guardrails | todo | - |
-| N7 E2E + polish | todo | - |
-| N8 Docs and ship | todo | - |
+| N2 Web shell | done | Desktop and 390px screenshots reviewed |
+| N3 Avatar | done | State machine unit tests, mouth-shape E2E check |
+| N4 Chat panel | done | Component tests, copy-to-clipboard E2E |
+| N5 Voice loop | done | E2E with stubbed speech APIs |
+| N6 Timer + guardrails | done | Fake-timer tests, "no /api after Stop" E2E |
+| N7 E2E + polish | done | `npm run check` green 3 runs in a row |
+| N8 Docs and ship | done | README, production build smoke-tested |
 
 ## Progress log
 
 - 2026-10-15: Plan approved. gh auth OK, remote repo exists and is empty. Starting N0.
 - N0: npm workspaces (server, web), ESLint 10 flat config, Prettier, Playwright. Issue: typescript-eslint does not support TypeScript 7 yet, so TS is pinned to 6.0.x. Target bumped to ES2023 for `findLast`.
 - N1: Express 5 server with `/api/health` and SSE `/api/chat`. Brain interface with `ClaudeBrain` (claude-haiku-5-5, effort low, max 1024 output tokens) and a free `MockBrain` used when no key is set. Guardrails cap history at 12 messages and trim messages over 8000 chars. Client disconnect aborts the upstream stream (tested).
+- N2 to N6: built together because they share App wiring; each node still has its own gate. Pure logic sits in `web/src/lib` (speech text, lip sync, avatar state, durations, cost) with unit tests. Hooks: `useChat`, `useSpeechSynthesis`, `useSpeechRecognition`, `useLipSync`, `useReplySpeaker`, `usePomodoro`.
+- E2E needs fake speech APIs in headless Chromium. Issue: tsx injects an esbuild `__name` helper into functions passed to `addInitScript`, which crashes in the browser. Fix: the stub is a plain JS init script (`e2e/support/speech-stub.js`).
+- Bugs found by screenshot review and fixed: (1) an exception from the speech layer marked a good reply as failed, so reply listeners are now isolated; (2) on mobile a long code line forced 96px of horizontal scroll, fixed with `minmax(0, 1fr)`, and the E2E test now checks after a code reply (verified red without the fix); (3) the hair drawing, stray background lines, and "1 replies" grammar.
+- Added a fake-fetch test for `ClaudeBrain` so the real API path (request shape, stream parsing, refusal note, error messages) is verified at $0.
+- Final gate: 21 server + 29 web unit tests, 7 Playwright E2E tests, lint and typecheck, green 3 runs in a row. `npm start` serves the built app from one port.
+
+## Not yet verified (needs you)
+
+- A live Claude API call with a real key (deliberately deferred to the API testing phase).
+- Real microphone and real browser voices. E2E uses stubbed speech APIs, so try a real session in Chrome.
+- The 30 minute real study session from the spec (step 6).
+
+## V2 next steps
+
+1. Deepgram streaming speech-to-text behind `/api/stt` for better accuracy and Firefox/Safari support.
+2. A cloud voice (OpenAI TTS or Cartesia) behind `/api/tts`, with amplitude-driven lip sync.
+3. Live2D or VRM avatar for a more realistic face.
+4. Paste notes or a syllabus as session context (use prompt caching to keep it cheap).
+5. End-of-session summary of what was covered and what to review.

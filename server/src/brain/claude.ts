@@ -11,8 +11,9 @@ export class ClaudeBrain implements Brain {
   constructor(
     apiKey: string,
     readonly model: string,
+    clientOptions: Omit<ConstructorParameters<typeof Anthropic>[0], 'apiKey'> = {},
   ) {
-    this.client = new Anthropic({ apiKey });
+    this.client = new Anthropic({ apiKey, ...clientOptions });
   }
 
   async reply({ system, messages, signal, onDelta }: BrainRequest): Promise<Usage> {
