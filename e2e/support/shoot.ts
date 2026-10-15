@@ -11,7 +11,7 @@ for (const [name, viewport] of [
 ] as const) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 2 });
   await installSpeech(page, 260);
-  await page.goto('http://localhost:5173/');
+  await page.goto(process.env.BASE_URL ?? 'http://localhost:5173/');
   await page.getByText('Mock brain').waitFor();
   await page.screenshot({ path: `${out}/${name}-1-off.png`, fullPage: name === 'mobile' });
 

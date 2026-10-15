@@ -4,9 +4,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    // E2E runs on its own ports so it never touches a dev server that may hold a real API key.
+    port: Number(process.env.WEB_PORT) || 5173,
     strictPort: true,
-    proxy: { '/api': 'http://127.0.0.1:8787' },
+    proxy: { '/api': `http://127.0.0.1:${Number(process.env.PORT) || 8787}` },
   },
   test: {
     environment: 'jsdom',

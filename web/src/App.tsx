@@ -43,9 +43,10 @@ export function App() {
     [cancelSpeech, resetSpeaker, send],
   );
 
-  // The mic pauses while Nova talks so it doesn't hear its own voice.
+  // The mic pauses for the whole spoken reply (not just each sentence) so Nova never hears herself.
+  const speakingReply = tts.speaking || (speaker.enabled && chat.replying);
   const recognition = useSpeechRecognition({
-    enabled: active && micOn && !tts.speaking,
+    enabled: active && micOn && !speakingReply,
     onFinal: sendMessage,
   });
 
@@ -128,6 +129,7 @@ export function App() {
             onSend={sendMessage}
             trimNotice={chat.trimNotice}
             onDismissTrimNotice={chat.dismissTrimNotice}
+            maxChars={health.status === 'ok' ? health.health.maxMessageChars : null}
           />
         </aside>
       </main>

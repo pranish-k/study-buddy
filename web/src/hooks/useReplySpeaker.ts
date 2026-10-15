@@ -32,5 +32,5 @@ export function useReplySpeaker(speak: (text: string) => void, enabled: boolean)
   );
   const reset = useCallback(() => spoken.current.clear(), []);
 
-  return { onDelta, onEnd, reset };
+  return { enabled, onDelta, onEnd, reset };
 }

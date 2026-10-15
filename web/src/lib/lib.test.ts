@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { deriveAvatarState } from './avatar-state';
 import { estimateCost, formatUsd } from './cost';
 import { durationsFromSearch, formatClock } from './durations';
-import { MAX_MESSAGE_CHARS, trimForSend } from './limits';
 import { shapesForWord } from './lipsync';
 import { CODE_PLACEHOLDER, splitSentences, toSpeakable } from './speech-text';
 
@@ -26,6 +25,15 @@ describe('toSpeakable', () => {
 describe('splitSentences', () => {
   it('holds back an incomplete trailing sentence while streaming', () => {
     expect(splitSentences('One. Two! Thr', false)).toEqual(['One.', 'Two!']);
+  });
+
+  it('holds back a trailing piece that only looks finished', () => {
+    // "3." may become "3.14", and "1." may be a list marker, once more text streams in.
+    expect(splitSentences('Pi is about 3.', false)).toEqual([]);
+    expect(splitSentences('Pi is about 3.14, so round it. Next', false)).toEqual([
+      'Pi is about 3.14, so round it.',
+    ]);
+    expect(splitSentences('Steps: 1.', false)).toEqual([]);
   });
 
   it('returns everything once final', () => {
@@ -100,13 +108,5 @@ describe('cost', () => {
   it('shows tiny amounts with more precision', () => {
     expect(formatUsd(0.0012)).toBe('$0.0012');
     expect(formatUsd(1.5)).toBe('$1.50');
-  });
-});
-
-describe('trimForSend', () => {
-  it('trims oversized pastes', () => {
-    const { text, trimmed } = trimForSend('a'.repeat(MAX_MESSAGE_CHARS + 10));
-    expect(trimmed).toBe(true);
-    expect(text).toContain('trimmed 10 characters');
   });
 });

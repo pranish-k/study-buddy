@@ -19,6 +19,7 @@ function renderChat(overrides: Partial<Parameters<typeof ChatPanel>[0]> = {}) {
       onSend={onSend}
       trimNotice={false}
       onDismissTrimNotice={() => {}}
+      maxChars={8000}
       {...overrides}
     />,
   );
@@ -33,6 +34,12 @@ describe('ChatPanel', () => {
     await userEvent.keyboard('{Enter}');
     expect(onSend).toHaveBeenCalledWith('line one\nline two');
     expect(box).toHaveValue('');
+  });
+
+  it('warns before sending a paste over the server limit', async () => {
+    const { box } = renderChat({ maxChars: 10 });
+    await userEvent.type(box, 'x'.repeat(11));
+    expect(screen.getByRole('status')).toHaveTextContent('Only the first 10 will be sent');
   });
 
   it('is disabled while Active Mode is off', () => {

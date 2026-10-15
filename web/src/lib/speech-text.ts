@@ -15,9 +15,12 @@ export function toSpeakable(markdown: string): string {
     .trim();
 }
 
-/** Splits speakable text into sentences. The last one is incomplete unless `final` is set. */
+/**
+ * Splits speakable text into sentences. While streaming, the last piece is always held back, even
+ * if it ends in punctuation: "about 3." may become "about 3.14", and "1." may be a list marker.
+ */
 export function splitSentences(text: string, final: boolean): string[] {
   const parts = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-  if (!final && parts.length > 0 && !/[.!?]$/.test(text)) parts.pop();
+  if (!final) parts.pop();
   return parts;
 }

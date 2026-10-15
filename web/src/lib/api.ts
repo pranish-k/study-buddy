@@ -5,6 +5,8 @@ export type BrainName = 'claude' | 'mock';
 export interface Health {
   brain: BrainName;
   model: string;
+  /** Longest message the server sends to the model before trimming it. */
+  maxMessageChars: number;
 }
 
 export interface ApiMessage {

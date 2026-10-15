@@ -7,6 +7,7 @@ export const MAX_MESSAGE_CHARS = 8000;
 
 export interface PreparedMessages {
   messages: ChatMessage[];
+  /** True when the newest message was cut down, so the UI can warn about that paste only. */
   trimmed: boolean;
 }
 
@@ -19,17 +20,24 @@ export function trimText(
   return { text: `${text.slice(0, limit)}\n\n[...trimmed ${dropped} characters]`, trimmed: true };
 }
 
+/**
+ * Caps history, trims each turn, then merges neighbouring turns from the same speaker (left behind
+ * when a reply fails or a check-in follows a question). Trimming happens per turn before merging,
+ * so a long earlier paste can never push the newest question out.
+ */
 export function prepareMessages(input: ChatMessage[]): PreparedMessages {
-  let messages = input.slice(-MAX_HISTORY_MESSAGES);
-  // The API expects the conversation to start with a user turn.
-  const firstUser = messages.findIndex((m) => m.role === 'user');
-  messages = firstUser === -1 ? [] : messages.slice(firstUser);
+  const recent = input
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((m) => ({ role: m.role, ...trimText(m.content) }));
+  const trimmed = recent.at(-1)?.trimmed ?? false;
 
-  let trimmed = false;
-  messages = messages.map((m) => {
-    const result = trimText(m.content);
-    trimmed ||= result.trimmed;
-    return { role: m.role, content: result.text };
-  });
+  const messages: ChatMessage[] = [];
+  for (const m of recent) {
+    const last = messages.at(-1);
+    if (last?.role === m.role) last.content += `\n\n${m.text}`;
+    else messages.push({ role: m.role, content: m.text });
+  }
+  // The API expects the conversation to start with a user turn.
+  while (messages[0]?.role === 'assistant') messages.shift();
   return { messages, trimmed };
 }

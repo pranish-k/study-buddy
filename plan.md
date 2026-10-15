@@ -141,6 +141,26 @@ study-buddy/
 - Added a fake-fetch test for `ClaudeBrain` so the real API path (request shape, stream parsing, refusal note, error messages) is verified at $0.
 - Final gate: 21 server + 29 web unit tests, 7 Playwright E2E tests, lint and typecheck, green 3 runs in a row. `npm start` serves the built app from one port.
 
+## Code review pass (2026-10-15)
+
+A high-effort review plus a manual pass found 11 real bugs, all fixed, each with a test confirmed to fail on the old code:
+
+| Bug | Fix |
+|---|---|
+| A new question while a reply streamed made Nova re-speak the old reply | Sending supersedes (aborts) the in-flight reply; check-ins are skipped mid-reply |
+| `send` could overwrite queued state updates and lose a reply | `useChat` keeps one source of truth (ref) and routes every change through `commit` |
+| Client trim plus suffix exceeded the server limit, so the trim banner kept coming back | Server is the only trimmer and publishes `maxMessageChars` on `/api/health`; `trimmed` reports only on the newest message |
+| Merging same-role turns before trimming could cut off the newest question | Server trims each turn, then merges (also fixes check-in after an unanswered question) |
+| "3." / "1." / "e.g." chunk boundaries skipped half a sentence in speech | While streaming, the last segment is always held back |
+| The mic restarted between streamed sentences and could hear Nova | Mic stays off for the whole spoken reply; "speaking" holds 350 ms across sentence gaps |
+| Hard recognition errors restarted every 250 ms indefinitely, and errors stayed on screen | Hard errors stop restarts; errors clear when the mic turns off |
+| Health check never retried ("Server offline" stuck) | Retries every 2 s until the server answers |
+| E2E could start before the API server was up | Playwright waits on `/api/health` through the Vite proxy |
+| E2E could reuse a dev server holding a real API key | E2E runs on its own ports (5174 / 8790), never reuses, and forces an empty key (verified that it wins over `.env`) |
+| Duplicated trim logic in client and server | Client trim removed |
+
+Gate after the fixes: 22 server + 41 web unit tests, 8 E2E tests, lint and typecheck, green 3 runs in a row.
+
 ## Not yet verified (needs you)
 
 - A live Claude API call with a real key (deliberately deferred to the API testing phase).

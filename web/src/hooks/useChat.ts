@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamChat, type ApiMessage, type Usage } from '../lib/api';
-import { trimForSend } from '../lib/limits';
 
 export type MessageStatus = 'streaming' | 'done' | 'stopped' | 'error';
 
@@ -35,16 +34,14 @@ function notify(callback: () => void): void {
 let counter = 0;
 const nextId = () => `m${Date.now().toString(36)}${(counter++).toString(36)}`;
 
-/** Converts the visible history into what the API needs: finished turns only, alternating roles. */
+/**
+ * Converts the visible history into what the API needs: real turns with content. The server trims
+ * each turn and merges same-role neighbours, so that logic lives in one place.
+ */
 export function toApiHistory(messages: ChatMessage[]): ApiMessage[] {
-  const out: ApiMessage[] = [];
-  for (const m of messages) {
-    if (m.kind === 'local' || m.status === 'error' || !m.content.trim()) continue;
-    const last = out.at(-1);
-    if (last?.role === m.role) last.content += `\n\n${m.content}`;
-    else out.push({ role: m.role, content: m.content });
-  }
-  return out;
+  return messages
+    .filter((m) => m.kind !== 'local' && m.status !== 'error' && m.content.trim())
+    .map((m) => ({ role: m.role, content: m.content }));
 }
 
 export function useChat(callbacks: Callbacks = {}) {
@@ -61,20 +58,29 @@ export function useChat(callbacks: Callbacks = {}) {
   const controllers = useRef(new Set<AbortController>());
 
   useEffect(() => {
-    messagesRef.current = messages;
     callbacksRef.current = callbacks;
   });
 
-  const update = useCallback((id: string, patch: Partial<ChatMessage>) => {
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  // The ref is the source of truth and every change goes through here, so the history sent to the
+  // API is never stale and no queued update can be overwritten.
+  const commit = useCallback((change: (prev: ChatMessage[]) => ChatMessage[]) => {
+    messagesRef.current = change(messagesRef.current);
+    setMessages(messagesRef.current);
   }, []);
+
+  const update = useCallback(
+    (id: string, patch: Partial<ChatMessage>) => {
+      commit((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    },
+    [commit],
+  );
 
   const requestReply = useCallback(
     async (history: ChatMessage[], kind: 'chat' | 'checkin') => {
       const id = nextId();
       const controller = new AbortController();
       controllers.current.add(controller);
-      setMessages((prev) => [
+      commit((prev) => [
         ...prev,
         {
           id,
@@ -92,7 +98,7 @@ export function useChat(callbacks: Callbacks = {}) {
           { messages: toApiHistory(history), kind },
           {
             onMeta: (meta) => {
-              if (meta.trimmed) setTrimNotice(true);
+              if (kind === 'chat') setTrimNotice(meta.trimmed);
             },
             onDelta: (text) => {
               full += text;
@@ -121,40 +127,43 @@ export function useChat(callbacks: Callbacks = {}) {
         setThinkingId((current) => (current === id ? null : current));
       }
     },
-    [update],
+    [update, commit],
   );
-
-  const send = useCallback(
-    (raw: string) => {
-      const text = raw.trim();
-      if (!text) return;
-      const { text: content, trimmed } = trimForSend(text);
-      setTrimNotice(trimmed);
-      const userMessage: ChatMessage = { id: nextId(), role: 'user', content, status: 'done' };
-      const history = [...messagesRef.current, userMessage];
-      messagesRef.current = history;
-      setMessages(history);
-      void requestReply(history, 'chat');
-    },
-    [requestReply],
-  );
-
-  const checkIn = useCallback(() => {
-    void requestReply(messagesRef.current, 'checkin');
-  }, [requestReply]);
-
-  const addLocalNote = useCallback((content: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: nextId(), role: 'assistant', content, status: 'done', kind: 'local' },
-    ]);
-  }, []);
 
   /** Aborts every in-flight request. The server aborts its upstream call when the connection drops. */
   const stopAll = useCallback(() => {
     controllers.current.forEach((c) => c.abort());
     controllers.current.clear();
   }, []);
+
+  /** A new question supersedes any reply still streaming, so two answers never overlap. */
+  const send = useCallback(
+    (raw: string) => {
+      const content = raw.trim();
+      if (!content) return;
+      stopAll();
+      const userMessage: ChatMessage = { id: nextId(), role: 'user', content, status: 'done' };
+      commit((prev) => [...prev, userMessage]);
+      void requestReply(messagesRef.current, 'chat');
+    },
+    [requestReply, stopAll, commit],
+  );
+
+  /** Skipped while a reply is in progress: Nova is already talking with the user. */
+  const checkIn = useCallback(() => {
+    if (controllers.current.size > 0) return;
+    void requestReply(messagesRef.current, 'checkin');
+  }, [requestReply]);
+
+  const addLocalNote = useCallback(
+    (content: string) => {
+      commit((prev) => [
+        ...prev,
+        { id: nextId(), role: 'assistant', content, status: 'done', kind: 'local' },
+      ]);
+    },
+    [commit],
+  );
 
   const dismissTrimNotice = useCallback(() => setTrimNotice(false), []);
 
@@ -163,6 +172,7 @@ export function useChat(callbacks: Callbacks = {}) {
   return {
     messages,
     thinking: thinkingId !== null,
+    replying: messages.some((m) => m.status === 'streaming'),
     usage,
     trimNotice,
     dismissTrimNotice,

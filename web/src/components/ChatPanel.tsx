@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { ChatMessage } from '../hooks/useChat';
-import { MAX_MESSAGE_CHARS } from '../lib/limits';
 import { Icon } from './Icon';
 import { Markdown } from './Markdown';
 
@@ -14,6 +13,8 @@ interface Props {
   onSend: (text: string) => void;
   trimNotice: boolean;
   onDismissTrimNotice: () => void;
+  /** The server's per-message limit, or null until the server has answered. */
+  maxChars: number | null;
 }
 
 export function ChatPanel(props: Props) {
@@ -27,10 +28,12 @@ export function ChatPanel(props: Props) {
     onSend,
     trimNotice,
     onDismissTrimNotice,
+    maxChars,
   } = props;
   const [draft, setDraft] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
-  const tooLong = draft.length > MAX_MESSAGE_CHARS;
+  const tooLong = maxChars !== null && draft.length > maxChars;
+  const limit = (maxChars ?? 0).toLocaleString();
 
   // Keep the newest message in view while replies stream in.
   const lastContent = messages.at(-1)?.content;
@@ -115,8 +118,8 @@ export function ChatPanel(props: Props) {
           <Icon name="alert" size={15} />
           <span>
             {tooLong
-              ? `This is ${draft.length.toLocaleString()} characters. Only the first ${MAX_MESSAGE_CHARS.toLocaleString()} will be sent, to keep the cost of one message low.`
-              : `Your last message was trimmed to ${MAX_MESSAGE_CHARS.toLocaleString()} characters to keep costs low.`}
+              ? `This is ${draft.length.toLocaleString()} characters. Only the first ${limit} will be sent, to keep the cost of one message low.`
+              : 'Your last message was too long, so only its beginning was sent, to keep costs low.'}
           </span>
           {!tooLong && (
             <button

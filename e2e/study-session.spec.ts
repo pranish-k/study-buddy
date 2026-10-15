@@ -57,6 +57,30 @@ test('talking to Nova: speech in, spoken reply with moving mouth, code kept in c
   await expect.poll(() => recognizing(page)).toBe(true);
 });
 
+test('a new question mid-reply stops the old answer instead of repeating it', async ({ page }) => {
+  await start(page);
+  await say(page, "I'm stuck on recursion");
+  await expect.poll(async () => (await spoken(page)).length).toBeGreaterThan(0);
+
+  const box = page.getByRole('textbox', { name: 'Message to Nova' });
+  await box.fill('hello there');
+  await box.press('Enter');
+
+  await expect(messages(page).locator('.msg.assistant').first()).toHaveAttribute(
+    'data-status',
+    'stopped',
+  );
+  await expect(messages(page).locator('.msg.assistant').last()).toHaveAttribute(
+    'data-status',
+    'done',
+    { timeout: 10_000 },
+  );
+  await expect(tile(page)).toHaveAttribute('data-state', 'idle', { timeout: 15_000 });
+  const firstSentence = "Recursion trips everyone up at first, so you're in good company.";
+  expect((await spoken(page)).filter((s) => s === firstSentence)).toHaveLength(1);
+  expect((await spoken(page)).join(' ')).toContain("Hi, I'm Nova!");
+});
+
 test('typing and pasting into chat, copying code, text-only mode', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await start(page);
@@ -94,8 +118,18 @@ test('giant pastes are trimmed with a warning', async ({ page }) => {
   await box.fill('x'.repeat(9000));
   await expect(page.getByText('Only the first 8,000 will be sent')).toBeVisible();
   await box.press('Enter');
-  await expect(page.getByText('Your last message was trimmed')).toBeVisible();
-  await expect(messages(page).locator('.msg.user')).toContainText('trimmed 1000 characters');
+  await expect(page.getByText('Your last message was too long')).toBeVisible();
+  // The server trims; the trim notice goes away with the next, short message.
+  await expect(messages(page).locator('.msg.assistant').last()).toHaveAttribute(
+    'data-status',
+    'done',
+    {
+      timeout: 10_000,
+    },
+  );
+  await box.fill('thanks');
+  await box.press('Enter');
+  await expect(page.getByText('Your last message was too long')).toBeHidden();
 });
 
 test('Pomodoro break triggers a check-in, then a back-to-work note', async ({ page }) => {

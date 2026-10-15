@@ -33,7 +33,7 @@ class RecordingBrain implements Brain {
 describe('GET /api/health', () => {
   it('reports which brain is active', async () => {
     const res = await request(createApp(new MockBrain(0))).get('/api/health');
-    expect(res.body).toEqual({ ok: true, brain: 'mock', model: 'mock' });
+    expect(res.body).toEqual({ ok: true, brain: 'mock', model: 'mock', maxMessageChars: 8000 });
   });
 });
 
@@ -48,6 +48,16 @@ describe('POST /api/chat', () => {
       { event: 'delta', data: { text: 'Hello ' } },
       { event: 'delta', data: { text: 'there' } },
       { event: 'done', data: { usage: { inputTokens: 12, outputTokens: 3 } } },
+    ]);
+  });
+
+  it('merges a check-in after an unanswered question into one user turn', async () => {
+    const brain = new RecordingBrain();
+    await request(createApp(brain))
+      .post('/api/chat')
+      .send({ kind: 'checkin', messages: [{ role: 'user', content: 'unanswered' }] });
+    expect(brain.last?.messages).toEqual([
+      { role: 'user', content: `unanswered\n\n${CHECKIN_PROMPT}` },
     ]);
   });
 

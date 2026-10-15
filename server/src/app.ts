@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import { MAX_MESSAGE_CHARS } from './guardrails.js';
 import { chatRouter } from './routes/chat.js';
 import type { Brain } from './types.js';
 
@@ -11,7 +12,12 @@ export function createApp(brain: Brain): express.Express {
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, brain: brain.name, model: brain.model });
+    res.json({
+      ok: true,
+      brain: brain.name,
+      model: brain.model,
+      maxMessageChars: MAX_MESSAGE_CHARS,
+    });
   });
   app.use('/api', chatRouter(brain));
 

@@ -3,6 +3,13 @@ import { loadPref, savePref } from '../lib/storage';
 
 type WordListener = (word: string) => void;
 
+/**
+ * Replies are spoken one sentence at a time, and the next sentence may not have streamed in yet
+ * when the current one ends. Holding "speaking" briefly bridges that gap so the mic and avatar don't
+ * flicker between sentences.
+ */
+export const SPEAKING_HOLD_MS = 350;
+
 const PREFERRED_VOICE =
   /natural|premium|enhanced|neural|google us english|samantha|ava|allison|aria|jenny/i;
 
@@ -26,6 +33,7 @@ export function useSpeechSynthesis() {
   const [caption, setCaption] = useState('');
   // Chrome drops utterances that are garbage collected mid-speech, so keep them referenced.
   const pending = useRef(new Set<SpeechSynthesisUtterance>());
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const wordListeners = useRef(new Set<WordListener>());
 
   useEffect(() => {
@@ -66,15 +74,18 @@ export function useSpeechSynthesis() {
         wordListeners.current.forEach((listener) => listener(word));
       };
       const finish = () => {
-        pending.current.delete(utterance);
-        if (pending.current.size === 0) {
+        if (!pending.current.delete(utterance) || pending.current.size > 0) return;
+        clearTimeout(holdTimer.current);
+        holdTimer.current = setTimeout(() => {
+          if (pending.current.size > 0) return;
           setSpeaking(false);
           setCaption('');
-        }
+        }, SPEAKING_HOLD_MS);
       };
       utterance.onend = finish;
       utterance.onerror = finish;
       pending.current.add(utterance);
+      clearTimeout(holdTimer.current);
       setSpeaking(true);
       window.speechSynthesis.speak(utterance);
     },
@@ -84,6 +95,7 @@ export function useSpeechSynthesis() {
   const cancel = useCallback(() => {
     if (!supported) return;
     pending.current.clear();
+    clearTimeout(holdTimer.current);
     window.speechSynthesis.cancel();
     setSpeaking(false);
     setCaption('');

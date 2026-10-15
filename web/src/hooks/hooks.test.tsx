@@ -73,7 +73,7 @@ describe('toApiHistory', () => {
     ...extra,
   });
 
-  it('drops local notes, errors and empty turns and merges same-role neighbours', () => {
+  it('keeps real turns and drops local notes, errors and empty replies', () => {
     expect(
       toApiHistory([
         msg('user', 'q1'),
@@ -87,8 +87,10 @@ describe('toApiHistory', () => {
       ]),
     ).toEqual([
       { role: 'user', content: 'q1' },
-      { role: 'assistant', content: 'a1\n\ncheck-in' },
-      { role: 'user', content: 'q2\n\nq3' },
+      { role: 'assistant', content: 'a1' },
+      { role: 'assistant', content: 'check-in' },
+      { role: 'user', content: 'q2' },
+      { role: 'user', content: 'q3' },
     ]);
   });
 });

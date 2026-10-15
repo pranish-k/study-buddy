@@ -53,14 +53,15 @@ export function useSpeechRecognition({
       setInterim(live.trim());
     };
     recognition.onerror = (event) => {
-      if (BLOCKED_ERRORS.has(event.error)) {
-        stopped = true;
-        setError(
-          'Microphone access is blocked. Allow it in the browser address bar, or type instead.',
-        );
-      } else if (!QUIET_ERRORS.has(event.error)) {
-        setError(`Speech recognition error: ${event.error}`);
-      }
+      if (QUIET_ERRORS.has(event.error)) return;
+      // Anything else (blocked mic, network, unsupported language) won't fix itself by restarting
+      // in a tight loop. Toggling the mic or Active Mode tries again.
+      stopped = true;
+      setError(
+        BLOCKED_ERRORS.has(event.error)
+          ? 'Microphone access is blocked. Allow it in the browser address bar, or type instead.'
+          : `Speech recognition stopped (${event.error}). Toggle the mic to try again.`,
+      );
     };
     recognition.onend = () => {
       setListening(false);
@@ -90,6 +91,7 @@ export function useSpeechRecognition({
       recognition.abort();
       setListening(false);
       setInterim('');
+      setError(null);
     };
   }, [enabled, Recognition]);
 
