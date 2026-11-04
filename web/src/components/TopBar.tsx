@@ -14,6 +14,9 @@ export function TopBar({
   const isMock = health.status === 'ok' && health.health.brain === 'mock';
   const model = health.status === 'ok' ? health.health.model : '';
   const cost = isMock ? 0 : estimateCost(usage, model);
+  const tokens = usage.inputTokens + usage.outputTokens;
+  // The mock brain reports no tokens, so "0 tokens - $0.00" would only be noise.
+  const showTokens = !isMock || tokens > 0;
 
   return (
     <header className="topbar">
@@ -36,12 +39,14 @@ export function TopBar({
         </span>
         <span className="usage" data-testid="usage" title="Usage for this session">
           <span>{usage.requests === 1 ? '1 reply' : `${usage.requests} replies`}</span>
+          {showTokens && (
+            <span className="tokens-part">
+              <span className="dot" aria-hidden="true" />
+              <span>{tokens.toLocaleString()} tokens</span>
+            </span>
+          )}
           <span className="dot" aria-hidden="true" />
-          <span>{(usage.inputTokens + usage.outputTokens).toLocaleString()} tokens</span>
-          <span className="dot" aria-hidden="true" />
-          <strong>
-            {cost === null ? 'cost n/a' : `${formatUsd(cost)}${isMock ? ' (mock)' : ''}`}
-          </strong>
+          <strong>{isMock ? 'mock, no cost' : cost === null ? 'cost n/a' : formatUsd(cost)}</strong>
         </span>
       </div>
     </header>

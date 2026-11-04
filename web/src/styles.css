@@ -21,7 +21,7 @@
   --radius-sm: 9px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 
@@ -177,6 +177,12 @@ p {
 .usage strong {
   color: var(--text);
   font-weight: 600;
+}
+
+.usage .tokens-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .usage .dot {
@@ -575,15 +581,25 @@ p {
   gap: 3px;
 }
 
+/* Wide enough for long voice names like "Samantha (English, US)". */
 .voice-picker select {
-  width: 168px;
-  max-width: 40vw;
+  width: 220px;
+  min-width: 168px;
+  max-width: min(280px, 40vw);
   height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--surface-2);
   font-size: 13px;
+}
+
+/* Where supported, size to the chosen voice instead (field-sizing only applies with width: auto). */
+@supports (field-sizing: content) {
+  .voice-picker select {
+    width: auto;
+    field-sizing: content;
+  }
 }
 
 /* ---------- Panels ---------- */
@@ -918,14 +934,21 @@ p {
   color: var(--text);
 }
 
+/* Wrap long lines: a horizontal scrollbar is easy to miss in the narrow chat panel. */
 .code-block pre {
   margin: 0;
   padding: 10px 12px;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-family: var(--mono);
   font-size: 13px;
   line-height: 1.55;
   tab-size: 4;
+}
+
+/* The UA stylesheet gives <code> its own monospace font; use the shared stack instead. */
+.code-block code {
+  font-family: inherit;
 }
 
 .notice {
@@ -1153,6 +1176,7 @@ p {
 
   .voice-picker select {
     width: 110px;
+    min-width: 0;
   }
 
   .self-tile {
