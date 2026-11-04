@@ -3,6 +3,8 @@
 An AI study companion that sits with you like a person on a video call.
 Nova, an encouraging tutor, idles in a video tile while you work, listens when you talk, answers out loud with lip-synced speech, reads anything you paste into the chat, and checks in when your Pomodoro break starts.
 
+![Study Buddy: Nova tutoring in a video tile next to the study chat](docs/screenshot.jpg)
+
 Everything runs locally in your browser and a small Node server on your computer.
 The only paid part is the Claude API, and only while Active Mode is on.
 
@@ -93,3 +95,7 @@ Chrome's speech recognition sends audio to Google's servers for transcription, a
 In browsers without speech recognition (such as Firefox), Nova shows a notice and you can still chat by typing.
 
 See `project-spec.md` for the product spec and `plan.md` for the build plan and progress log.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
